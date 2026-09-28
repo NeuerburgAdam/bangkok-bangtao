@@ -1331,6 +1331,7 @@ let DP = store.get("dayplans",{});           // { "2026-10-03": { planId, swaps:
 let dpDate = store.get("dpDate", TRIP_DAYS.includes(todayISO)?todayISO:"2026-10-03");
 let dpShowAll = false;
 let dpFilter = "all";
+let PF = {all:()=>true};
 const saveDP = () => { store.set("dayplans",DP); schedulePushSync(); };
 const hm = t => { const [h,m]=String(t||"0:0").split(":").map(Number); return h*60+(m||0); };
 const fmtHM = m => { m=((m%1440)+1440)%1440; const h=Math.floor(m/60), mm=m%60; return (h%12||12)+(mm?":"+String(mm).padStart(2,"0"):"")+" "+(h<12?"AM":"PM"); };
@@ -1395,7 +1396,7 @@ function viewDays(){
       <ol class="tl">${b.rows.map((r,k)=>slotRow(r,k,date,b.rows[k-1])).join("")}</ol>
       <p class="muted" style="font-size:13.5px">Getting around this day costs about ฿${cost.toLocaleString("en-US")} (${usd(cost)}) for the two of you, not counting food or tickets. Tap <b>Swap</b> on any stop to change it. Your choices save on this phone${pushState()==="on"?" and set your reminders":""}.</p>`;
   } else {
-    const PF={all:()=>true,local:p=>p.likeLocal||/^Like a local/i.test(p.title||""),walk:p=>p.walkOnly||/^Walkable/i.test(p.title||""),rain:p=>p.rainProof||/rain/i.test(p.theme||"")||/indoor|rainy/i.test(p.title||""),budget:p=>(+p.estCostTHB||9e9)<=2000||/budget/i.test(p.theme||""),notemple:p=>p.templeLevel==="none"||p.templeLevel==="light",split:p=>p.splitFriendly};
+    PF={all:()=>true,local:p=>p.likeLocal||/^Like a local/i.test(p.title||""),walk:p=>p.walkOnly||/^Walkable/i.test(p.title||""),rain:p=>p.rainProof||/rain/i.test(p.theme||"")||/indoor|rainy/i.test(p.title||""),budget:p=>(+p.estCostTHB||9e9)<=2000||/budget/i.test(p.theme||""),notemple:p=>p.templeLevel==="none"||p.templeLevel==="light",split:p=>p.splitFriendly};
     let opts=plansFor(date).filter(p=>dpShowAll||fitsDate(p,date)).filter(PF[dpFilter]||PF.all);
     if(dpFilter==="budget") opts.sort((a,b)=>(+a.estCostTHB||9e9)-(+b.estCostTHB||9e9));
     const hidden=plansFor(date).length-opts.length;
@@ -1404,10 +1405,17 @@ function viewDays(){
       <button class="buildown" data-cbstart="1"><span class="bo-ic">${G.star}</span><span><b>Build your own day</b><small>Pick coffee, then an activity, lunch, the afternoon, dinner and drinks. Each list shows only what's open and close to your last stop, and times and travel are added for you.</small></span><b class="chev">›</b></button>
       <span class="eyebrow" style="margin-top:4px">Or start from a ready-made plan</span>
       <div class="filters" style="margin:0">${[["all","All"],["local","Like a local"],["walk","All on foot"],["rain","Rain-proof"],["budget","Budget (under ฿2,000 for two)"],["notemple","Few or no temples"],["split","Easy to split up"]].map(([k,l])=>`<button class="chip sm" data-dpf="${k}" aria-pressed="${dpFilter===k}">${l}</button>`).join("")}</div>
-      <div class="pgrid">${opts.map(p=>planOption(p,date)).join("")||`<div class="empty">No plans for this day yet.</div>`}</div>
+      <div class="pgrid">${opts.map(p=>planOption(p,date)).join("")||filterEmpty(PF[dpFilter]||PF.all,date)}</div>
       ${hidden?`<button class="btn" data-dpall="1" style="align-self:flex-start">${dpShowAll?"Hide":"Show"} ${hidden} plan${hidden===1?"":"s"} that don't fit ${f.dow} ${f.mon} ${f.n}</button>`:""}`;
   }
   return `<div class="daystrip">${strip}</div>${body}`;
+}
+// When a filter has no plans on the selected day, point to the days that do.
+function filterEmpty(fn,date){
+  const hits=TRIP_DAYS.filter(d=>d!==date&&PLANS.some(p=>p.city===cityOfDate(d)&&fitsDate(p,d)&&fn(p)));
+  const label={local:"Like a local",walk:"All on foot",rain:"Rain-proof",budget:"Budget",notemple:"Few or no temples",split:"Easy to split up"}[dpFilter]||"these";
+  if(!hits.length) return `<div class="empty">No ${esc(label)} plans yet. More are being added.</div>`;
+  return `<div class="empty" style="text-align:left"><b>No ${esc(label)} plans on ${fmtDay(date).dow} ${fmtDay(date).mon} ${fmtDay(date).n}.</b><br>They're available on:<div class="row" style="margin-top:8px">${hits.map(d=>{const x=fmtDay(d);return `<button class="chip sm" data-dpdate="${d}">${x.dow} ${x.mon} ${x.n} · ${cityOfDate(d)==="bkk"?"Bangkok":"Phuket"}</button>`}).join("")}</div></div>`;
 }
 function dayNotes(date){
   const d=DAYS.find(x=>x.d===date); if(!d?.ev?.length) return "";
