@@ -677,7 +677,11 @@ const escRaw = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 const usdify = s => String(s??"").replace(/฿\s?(\d[\d,]*)(?:\s?[–-]\s?฿?\s?(\d[\d,]*))?(\+{0,2})(?![\d,])(?![^<\n]{0,16}\$)/g,(m,a,b,pl)=>{
   const n=x=>Math.max(1,Math.round(+x.replace(/,/g,"")/33)); return `${m} ($${n(a)}${b?"–$"+n(b):""})`; });
 const usdifyTHB = s => String(s??"").replace(/(\d[\d,]*)(?:\s?[–-]\s?(\d[\d,]*))?\s?(THB|baht)\b(?![^<\n]{0,16}\$)/gi,(m,a,b)=>{ const n=x=>Math.max(1,Math.round(+x.replace(/,/g,"")/33)); return `${m} ($${n(a)}${b?"–$"+n(b):""})`; });
-const esc = s => escRaw(usdifyTHB(usdify(to12(s))));
+const kmify = s0 => { const s=String(s0??""); return s.replace(/(~?\d+(?:\.\d+)?)(?:\s?[–-]\s?(\d+(?:\.\d+)?))?\s?(km|kilometers?)\b(?!\s*\()/gi,(m,a,b)=>{ const f=x=>{const v=+String(x).replace("~","")*0.621371; return v<10?v.toFixed(1):Math.round(v)}; return `${m} (${f(a)}${b?"–"+f(b):""} mi)`; })
+  .replace(/(\d[\d,]*)(?:\s?[–-]\s?(\d[\d,]*))?\s?m\b(?!\s*\()(?![a-z])/g,(m,a,b)=>{ const f=x=>Math.round(+String(x).replace(/,/g,"")*3.28084/10)*10; const n=+String(a).replace(/,/g,""); if(n<5||n>5000) return m;
+    if(n>=300&&!/climb|high|tall|elev|gain|up/i.test(s)){ const mi=x=>(+String(x).replace(/,/g,"")*0.000621371).toFixed(1); return `${m} (${mi(a)}${b?"–"+mi(b):""} mi)`; }
+    return `${m} (${f(a).toLocaleString("en-US")}${b?"–"+f(b).toLocaleString("en-US"):""} ft)`; }); };
+const esc = s => escRaw(kmify(usdifyTHB(usdify(to12(s)))));
 // Turn URLs, bare domains, Thai phone numbers and Instagram handles in already-escaped text into links.
 function linkify(h){
   const A=(href,t)=>`<a class="lnk" href="${href}" target="_blank" rel="noopener">${t}</a>`;
@@ -705,7 +709,13 @@ const fmtDay = iso => { const d=new Date(iso+"T00:00:00Z"); return {dow:d.toLoca
 function km(a,b){const R=6371,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;const h=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
 function bearing(a,b){const r=Math.PI/180,y=Math.sin((b[1]-a[1])*r)*Math.cos(b[0]*r),x=Math.cos(a[0]*r)*Math.sin(b[0]*r)-Math.sin(a[0]*r)*Math.cos(b[0]*r)*Math.cos((b[1]-a[1])*r);return (Math.atan2(y,x)/r+360)%360}
 const compass = deg => ["N","NE","E","SE","S","SW","W","NW"][Math.round(deg/45)%8];
-function fmtDist(k){ if(k<1) return Math.round(k*1000/10)*10+" m"; return (k<10?k.toFixed(1):Math.round(k))+" km"; }
+// Metric plus US units: 180 m (590 ft), 650 m (0.4 mi), 2.3 km (1.4 mi).
+function fmtDist(k){
+  const mi=k*0.621371;
+  const us = mi<0.19 ? Math.round(k*3280.84/10)*10+" ft" : (mi<10?mi.toFixed(1):Math.round(mi))+" mi";
+  const me = k<1 ? Math.round(k*1000/10)*10+" m" : (k<10?k.toFixed(1):Math.round(k))+" km";
+  return me+" ("+us+")";
+}
 const fmtMin = m => m<60 ? m+" min" : Math.floor(m/60)+" h"+(m%60?" "+(m%60)+" min":"");
 function walkMin(k){ return Math.round(k*1.3*1000/80); } // 1.3 street-detour factor, 80 m/min
 // Ride estimate from straight-line km: road ≈ 1.35×; Grab/Bolt car rates from 2025–26 fare reports.
@@ -735,7 +745,7 @@ function rideBlock(p){
   else if(r){
     const t=r.min>=90?(Math.round(r.min/30)/2)+" h":r.min+" min";
     const wm=walkMin(distFromHome(p));
-    est=`<span class="rchip">${G.car}Grab ~${t}</span><span class="rchip">~฿${r.lo.toLocaleString("en-US")}–${r.hi.toLocaleString("en-US")} <small>(${usd(r.lo)}–${usd(r.hi)})</small> each way, per car</span>${wm<=75?`<span class="rchip walkalt">${G.walk}or ${fmtMin(wm)} walk · free</span>`:""}<span class="rchip muted">${Math.round(r.road)} km by road</span>`;
+    est=`<span class="rchip">${G.car}Grab ~${t}</span><span class="rchip">~฿${r.lo.toLocaleString("en-US")}–${r.hi.toLocaleString("en-US")} <small>(${usd(r.lo)}–${usd(r.hi)})</small> each way, per car</span>${wm<=75?`<span class="rchip walkalt">${G.walk}or ${fmtMin(wm)} walk · free</span>`:""}<span class="rchip muted">${fmtDist(r.road)} by road</span>`;
     if(wm<=75&&wm>30&&p.city==="hkt") est+=`<p class="farnote">Walkable, but many Phuket roads have no sidewalk and traffic is fast. Go in daylight, or walk one way and ride back.</p>`;
     else if(wm<=75&&wm>35&&p.city==="bkk") est+=`<p class="farnote">A long but doable city walk. Mornings and evenings are cooler, and you can hop on the BTS or MRT partway if it gets hot.</p>`;
     if(r.far) est+=`<p class="farnote"><b>Long trip.</b> Round trip by Grab runs about ฿${(r.lo*2).toLocaleString("en-US")}–${(r.hi*2).toLocaleString("en-US")} (${usd(r.lo*2)}–${usd(r.hi*2)}) for the car. ${p.city==="hkt"?"A tour with hotel pickup, or a hired driver for the day (about ฿2,500–4,000, or $75–120, for the car), is usually cheaper and easier.":"A tour with hotel pickup, or the train or van where the note mentions one, is usually cheaper."}</p>`;
@@ -1381,7 +1391,7 @@ function viewDays(){
       <ol class="tl">${b.rows.map((r,k)=>slotRow(r,k,date,b.rows[k-1])).join("")}</ol>
       <p class="muted" style="font-size:13.5px">Getting around this day costs about ฿${cost.toLocaleString("en-US")} (${usd(cost)}) for the two of you, not counting food or tickets. Tap <b>Swap</b> on any stop to change it. Your choices save on this phone${pushState()==="on"?" and set your reminders":""}.</p>`;
   } else {
-    const PF={all:()=>true,rain:p=>p.rainProof||/rain/i.test(p.theme||"")||/indoor|rainy/i.test(p.title||""),budget:p=>(+p.estCostTHB||9e9)<=2000||/budget/i.test(p.theme||""),notemple:p=>p.templeLevel==="none"||p.templeLevel==="light",split:p=>p.splitFriendly};
+    const PF={all:()=>true,walk:p=>p.walkOnly||/^Walkable/i.test(p.title||""),rain:p=>p.rainProof||/rain/i.test(p.theme||"")||/indoor|rainy/i.test(p.title||""),budget:p=>(+p.estCostTHB||9e9)<=2000||/budget/i.test(p.theme||""),notemple:p=>p.templeLevel==="none"||p.templeLevel==="light",split:p=>p.splitFriendly};
     let opts=plansFor(date).filter(p=>dpShowAll||fitsDate(p,date)).filter(PF[dpFilter]||PF.all);
     if(dpFilter==="budget") opts.sort((a,b)=>(+a.estCostTHB||9e9)-(+b.estCostTHB||9e9));
     const hidden=plansFor(date).length-opts.length;
@@ -1389,7 +1399,7 @@ function viewDays(){
       ${dayNotes(date)}
       <button class="buildown" data-cbstart="1"><span class="bo-ic">${G.star}</span><span><b>Build your own day</b><small>Pick coffee, then an activity, lunch, the afternoon, dinner and drinks. Each list shows only what's open and close to your last stop, and times and travel are added for you.</small></span><b class="chev">›</b></button>
       <span class="eyebrow" style="margin-top:4px">Or start from a ready-made plan</span>
-      <div class="filters" style="margin:0">${[["all","All"],["rain","Rain-proof"],["budget","Budget (under ฿2,000 for two)"],["notemple","Few or no temples"],["split","Easy to split up"]].map(([k,l])=>`<button class="chip sm" data-dpf="${k}" aria-pressed="${dpFilter===k}">${l}</button>`).join("")}</div>
+      <div class="filters" style="margin:0">${[["all","All"],["walk","All on foot"],["rain","Rain-proof"],["budget","Budget (under ฿2,000 for two)"],["notemple","Few or no temples"],["split","Easy to split up"]].map(([k,l])=>`<button class="chip sm" data-dpf="${k}" aria-pressed="${dpFilter===k}">${l}</button>`).join("")}</div>
       <div class="pgrid">${opts.map(p=>planOption(p,date)).join("")||`<div class="empty">No plans for this day yet.</div>`}</div>
       ${hidden?`<button class="btn" data-dpall="1" style="align-self:flex-start">${dpShowAll?"Hide":"Show"} ${hidden} plan${hidden===1?"":"s"} that don't fit ${f.dow} ${f.mon} ${f.n}</button>`:""}`;
   }
@@ -1429,7 +1439,7 @@ function metaRow(p){
   return `<div class="meta">
     <span>${IC.clock}${planSpan(p)}</span>
     <span>${IC.stops}${p.slots.length} stops</span>
-    ${p.walkKm?`<span>${G.walk}${esc(p.walkKm)} km</span>`:""}
+    ${p.walkKm?`<span>${G.walk}${esc(p.walkKm)} km (${(+p.walkKm*0.621371).toFixed(1)} mi)</span>`:""}
     ${p.estCostTHB?`<span>${IC.baht}฿${(+p.estCostTHB).toLocaleString("en-US")} (${usd(+p.estCostTHB)}) <small>for two</small></span>`:""}
     ${tl?`<span>${IC.temple}${tl}</span>`:""}
   </div>`;
@@ -1461,7 +1471,7 @@ function openPlanPage(id){
       <dl class="statgrid">
         <div><dt>Hours</dt><dd>${planSpan(p)}</dd></div>
         <div><dt>Stops</dt><dd>${p.slots.length}</dd></div>
-        <div><dt>Walking</dt><dd>${p.walkKm?esc(p.walkKm)+" km":"Light"}</dd></div>
+        <div><dt>Walking</dt><dd>${p.walkKm?esc(p.walkKm)+" km ("+(+p.walkKm*0.621371).toFixed(1)+" mi)":"Light"}</dd></div>
         <div><dt>Cost for two</dt><dd>${p.estCostTHB?"฿"+(+p.estCostTHB).toLocaleString("en-US")+" · "+usd(+p.estCostTHB):"Varies"}</dd></div>
         <div><dt>Temples</dt><dd>${({none:"None",light:"A little",heavy:"Lots"})[p.templeLevel]||"—"}</dd></div>
         <div><dt>Pace</dt><dd>${esc((p.pace||"moderate").replace(/^./,c=>c.toUpperCase()))}${p.splitFriendly?" · easy to split":""}</dd></div>

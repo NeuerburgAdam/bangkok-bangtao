@@ -1,5 +1,5 @@
 // Offline support: app shell is cached on install; map tiles and fonts are cached as you view them.
-const VERSION = "4aac033295";
+const VERSION = "c2d5c89e2f";
 const SHELL = "shell-" + VERSION;
 const RUNTIME = "runtime-v1";
 const TILES = "tiles-v1";
