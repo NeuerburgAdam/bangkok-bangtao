@@ -1765,6 +1765,7 @@ function scoreFor(p,prevLoc,type,date,arrive,nextLoc,alts){
   if(PREFS.budget==="budget"){ sc -= cost/60 + (tr.costTHB||0)/40; if(cost===0) sc+=4; if(p.cat==="splurge") sc-=25; }
   else if(PREFS.budget==="mid"){ sc -= cost/250; }
   else if(PREFS.budget==="splurge"){ if(p.cat==="splurge") sc+=6; }
+  if(p.closedNote) sc-=60;
   if(avoid(p)) sc-=30;
   if(usedElsewhere(date).has(p.id)) sc-=9;
   if(wrongDay(p,date)) sc-=60;
@@ -1816,7 +1817,7 @@ function autoFill(date){
     const usedTypes=new Set(st.steps.map(x=>x.placeId&&byId[x.placeId]?.type).filter(Boolean));
     const {list,arrive}=candidates(date,st,i,true);
     const chosen=st.steps.map(x=>byId[x.placeId]).filter(q=>q&&q.lat!=null&&q.kind==="do");
-    const best=list.find(x=>!(x.p.kind==="do"&&chosen.some(q=>km([q.lat,q.lng],[x.p.lat??0,x.p.lng??0])<0.25))&&!(morningOnly(x.p)&&arrive>=hm("10:30"))&&!closedOn(x.p,date)&&!wrongDay(x.p,date)&&x.p.lat!=null&&!(eveningOnly(x.p)&&!["night","sunset","dinner"].includes(s.type))&&!isAdvice(x.p)&&!isTour(x.p)&&!avoid(x.p)&&openAt(x.p,arrive)!==false&&!(x.p.type&&usedTypes.has(x.p.type))&&durOf(x.p,s.type)<=240);
+    const best=list.find(x=>!x.p.closedNote&&!(x.p.kind==="do"&&chosen.some(q=>km([q.lat,q.lng],[x.p.lat??0,x.p.lng??0])<0.25))&&!(morningOnly(x.p)&&arrive>=hm("10:30"))&&!closedOn(x.p,date)&&!wrongDay(x.p,date)&&x.p.lat!=null&&!(eveningOnly(x.p)&&!["night","sunset","dinner"].includes(s.type))&&!isAdvice(x.p)&&!isTour(x.p)&&!avoid(x.p)&&openAt(x.p,arrive)!==false&&!(x.p.type&&usedTypes.has(x.p.type))&&durOf(x.p,s.type)<=240);
     if(best) s.placeId=best.p.id; });
   saveDP();
 }
@@ -1909,7 +1910,7 @@ function openPicker(idx){
   const row=({p,tr,tr2})=>{const w=closedOn(p,date)||(openAt(p,arrive)===false?"Closed then":"");return `<div class="pickwrap"><button class="pick" data-cbchoose="${esc(p.id)}" style="${catVar(p)}">
       ${thumb(p)}
       <span class="pk-t"><b>${esc(p.name||p.title)}</b><small>${esc(catOf(p).label)}${p.cuisine?" · "+esc(shortTxt(p.cuisine,30)):p.type?" · "+esc(p.type):""}</small>
-      <span class="pk-m">${p.googleRating?`<i>★ ${p.googleRating}</i>`:""}${thb(p)!=null?`<i>${thb(p)===0?"Free":"฿"+thb(p).toLocaleString("en-US")+" · "+usd(thb(p))}</i>`:""}${p.localFavorite?`<i class="hot">Local fave</i>`:""}${avoid(p)?`<i class="warn">Ethics concerns</i>`:""}${wrongDay(p,date)?`<i class="warn">Not on ${fmtDay(date).dow}</i>`:""}${todayOnly(p,date)?`<i class="hot">Only today</i>`:""}${morningOnly(p)&&arrive>=hm("10:30")?`<i class="warn">Best early</i>`:""}${p.topPick?`<i class="hot">Top pick</i>`:""}${alts.includes(p.id)?`<i class="hot">Guide's alternative</i>`:""}${tr2?`<i>then ${tr2.min}′ to next</i>`:""}${w?`<i class="warn">${esc(shortTxt(w,26))}</i>`:""}</span></span>
+      <span class="pk-m">${p.googleRating?`<i>★ ${p.googleRating}</i>`:""}${thb(p)!=null?`<i>${thb(p)===0?"Free":"฿"+thb(p).toLocaleString("en-US")+" · "+usd(thb(p))}</i>`:""}${p.localFavorite?`<i class="hot">Local fave</i>`:""}${avoid(p)?`<i class="warn">Ethics concerns</i>`:""}${p.closedNote?`<i class="warn">${esc(p.closedNote)}</i>`:""}${wrongDay(p,date)?`<i class="warn">Not on ${fmtDay(date).dow}</i>`:""}${todayOnly(p,date)?`<i class="hot">Only today</i>`:""}${morningOnly(p)&&arrive>=hm("10:30")?`<i class="warn">Best early</i>`:""}${p.topPick?`<i class="hot">Top pick</i>`:""}${alts.includes(p.id)?`<i class="hot">Guide's alternative</i>`:""}${tr2?`<i>then ${tr2.min}′ to next</i>`:""}${w?`<i class="warn">${esc(shortTxt(w,26))}</i>`:""}</span></span>
       <span class="pk-d">${isTour(p)?"pickup":tr.min<=20&&tr.min>0&&!/Grab/.test(tr.detail||"")?G.walk+tr.min+"′":G.car+tr.min+"′"}</span>
     </button><button class="pk-info" data-placeinfo="${esc(p.id)}" aria-label="More about ${esc(p.name||p.title)}">i</button></div>`;};
   document.getElementById("overlay").innerHTML=`<div class="swapsheet" role="dialog" aria-label="Choose ${esc(T.label)}"><div class="card">
