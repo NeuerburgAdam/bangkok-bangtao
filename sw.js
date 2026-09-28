@@ -1,5 +1,5 @@
 // Offline support: app shell is cached on install; map tiles and fonts are cached as you view them.
-const VERSION = "ca021bc44d";
+const VERSION = "daa78a4b42";
 const SHELL = "shell-" + VERSION;
 const RUNTIME = "runtime-v1";
 const TILES = "tiles-v1";
@@ -51,4 +51,18 @@ self.addEventListener("fetch", e => {
       return hit || net;
     }));
   }
+});
+
+// Push reminders
+self.addEventListener("push", e => {
+  let d = {}; try { d = e.data.json(); } catch (err) { d = { title: "Trip reminder", body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Trip reminder", { body: d.body || "", tag: d.tag, icon: "icon-192.png", badge: "icon-192.png", data: { url: d.url || "./" } }));
+});
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || "./", self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+    for (const c of list) { if ("focus" in c) { c.navigate(url).catch(() => {}); return c.focus(); } }
+    return self.clients.openWindow(url);
+  }));
 });
