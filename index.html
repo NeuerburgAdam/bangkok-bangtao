@@ -292,6 +292,7 @@ details.sec .in{padding:0 16px 16px;display:flex;flex-direction:column;gap:14px}
 .ride p{font-size:14.5px}
 .rchip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 9px;line-height:1.35}
 .rchip small{font:500 11px var(--mono);color:var(--muted)}
+.rchip.walkalt{border-color:var(--c-walk);color:var(--c-walk)}
 .rchip.muted{color:var(--muted);font-weight:500}
 .rchip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .farnote{font-size:13.5px;color:var(--ink);border-top:1px dashed var(--line);padding-top:6px}
@@ -300,6 +301,7 @@ details.sec .in{padding:0 16px 16px;display:flex;flex-direction:column;gap:14px}
 .ride p{font-size:14.5px}
 .rchip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 9px;line-height:1.35}
 .rchip small{font:500 11px var(--mono);color:var(--muted)}
+.rchip.walkalt{border-color:var(--c-walk);color:var(--c-walk)}
 .rchip.muted{color:var(--muted);font-weight:500}
 .rchip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .farnote{font-size:13.5px;color:var(--ink);border-top:1px dashed var(--line);padding-top:6px}
@@ -489,6 +491,7 @@ function km(a,b){const R=6371,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;co
 function bearing(a,b){const r=Math.PI/180,y=Math.sin((b[1]-a[1])*r)*Math.cos(b[0]*r),x=Math.cos(a[0]*r)*Math.sin(b[0]*r)-Math.sin(a[0]*r)*Math.cos(b[0]*r)*Math.cos((b[1]-a[1])*r);return (Math.atan2(y,x)/r+360)%360}
 const compass = deg => ["N","NE","E","SE","S","SW","W","NW"][Math.round(deg/45)%8];
 function fmtDist(k){ if(k<1) return Math.round(k*1000/10)*10+" m"; return (k<10?k.toFixed(1):Math.round(k))+" km"; }
+const fmtMin = m => m<60 ? m+" min" : Math.floor(m/60)+" h"+(m%60?" "+(m%60)+" min":"");
 function walkMin(k){ return Math.round(k*1.3*1000/80); } // 1.3 street-detour factor, 80 m/min
 // Ride estimate from straight-line km: road ≈ 1.35×; Grab/Bolt car rates from 2025–26 fare reports.
 function ride(p){
@@ -508,12 +511,15 @@ function rideBlock(p){
   if(r&&r.walk) est=`<span class="rchip">${G.walk}${r.min} min walk · free</span>`;
   else if(r){
     const t=r.min>=90?(Math.round(r.min/30)/2)+" h":r.min+" min";
-    est=`<span class="rchip">${G.car}Grab ~${t}</span><span class="rchip">~฿${r.lo.toLocaleString("en-US")}–${r.hi.toLocaleString("en-US")} <small>(${usd(r.lo)}–${usd(r.hi)})</small> each way, per car</span><span class="rchip muted">${Math.round(r.road)} km by road</span>`;
+    const wm=walkMin(distFromHome(p));
+    est=`<span class="rchip">${G.car}Grab ~${t}</span><span class="rchip">~฿${r.lo.toLocaleString("en-US")}–${r.hi.toLocaleString("en-US")} <small>(${usd(r.lo)}–${usd(r.hi)})</small> each way, per car</span>${wm<=75?`<span class="rchip walkalt">${G.walk}or ${fmtMin(wm)} walk · free</span>`:""}<span class="rchip muted">${Math.round(r.road)} km by road</span>`;
+    if(wm<=75&&wm>30&&p.city==="hkt") est+=`<p class="farnote">Walkable, but many Phuket roads have no sidewalk and traffic is fast. Go in daylight, or walk one way and ride back.</p>`;
+    else if(wm<=75&&wm>35&&p.city==="bkk") est+=`<p class="farnote">A long but doable city walk. Mornings and evenings are cooler, and you can hop on the BTS or MRT partway if it gets hot.</p>`;
     if(r.far) est+=`<p class="farnote"><b>Long trip.</b> Round trip by Grab runs about ฿${(r.lo*2).toLocaleString("en-US")}–${(r.hi*2).toLocaleString("en-US")} (${usd(r.lo*2)}–${usd(r.hi*2)}) for the car. ${p.city==="hkt"?"A tour with hotel pickup, or a hired driver for the day (about ฿2,500–4,000, or $75–120, for the car), is usually cheaper and easier.":"A tour with hotel pickup, or the train or van where the note mentions one, is usually cheaper."}</p>`;
   }
   return `<div class="ride"><span class="eyebrow">Getting there from ${esc(HOME[p.city].name)}</span>${txt?`<p>${rich(txt)}</p>`:""}${est?`<div class="row">${est}</div>`:""}</div>`;
 }
-function travelHint(k){ const w=walkMin(k); if(w<=30) return w+" min walk"; if(k<=15) return "Grab ~"+Math.max(5,Math.round(k*3.2))+" min"; return "Grab ~"+Math.round(k*1.6+5)+" min"; }
+function travelHint(k){ const w=walkMin(k); if(w<=30) return w+" min walk"; const g=k<=15?"Grab ~"+Math.max(5,Math.round(k*3.2))+" min":"Grab ~"+Math.round(k*1.6+5)+" min"; return w<=75? g+" · "+fmtMin(w)+" walk" : g; }
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("on"),1700)}
 function copy(txt){
   const ok=()=>toast("Copied");
