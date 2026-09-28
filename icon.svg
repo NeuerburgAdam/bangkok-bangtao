@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0E1C1F"/>
+  <circle cx="370" cy="150" r="150" fill="#E9A21A" opacity=".16"/>
+  <path d="M96 300 H416" stroke="#8FA7A6" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 22"/>
+  <path d="M120 300 H256" stroke="#E9A21A" stroke-width="26" stroke-linecap="round"/>
+  <path d="M256 300 H392" stroke="#2FC2B5" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="120" cy="300" r="30" fill="#0E1C1F" stroke="#E9A21A" stroke-width="16"/>
+  <circle cx="256" cy="300" r="24" fill="#EAF2EF"/>
+  <circle cx="392" cy="300" r="30" fill="#0E1C1F" stroke="#2FC2B5" stroke-width="16"/>
+  <text x="256" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="800" font-size="96" fill="#EAF2EF" letter-spacing="-3">BKK·HKT</text>
+</svg>
